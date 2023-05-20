@@ -3,7 +3,7 @@ from tinygrad.helpers import argsort, ShapeType
 from tinygrad.ops import UnaryOps, BinaryOps, ReduceOps, MovementOps
 from tinygrad.tensor import Function
 from tinygrad.lazy import LazyBuffer
-
+import math
 class Contiguous(Function):
   def forward(self, x): return x.contiguous()
   def backward(self, grad_output): return grad_output
@@ -42,6 +42,24 @@ class Exp(Function):
 
   def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
     return self.ret.binary_op(BinaryOps.MUL, grad_output)
+
+class Sin(Function):
+  def forward(self, x:LazyBuffer) -> LazyBuffer:
+    self.ret = x
+    return self.ret.unary_op(UnaryOps.SIN)
+
+  def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
+    return grad_output.binary_op(BinaryOps.MUL, self.ret.const_like(math.pi/2).binary_op(BinaryOps.SUB, self.ret).unary_op(UnaryOps.SIN)) 
+
+
+class Cos(Function):
+  def forward(self, x:LazyBuffer) -> LazyBuffer:
+    self.ret = x
+    return self.ret.const_like(math.pi/2).binary_op(BinaryOps.SUB, self.ret).unary_op(UnaryOps.SIN)
+
+  def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
+    return grad_output.binary_op(BinaryOps.MUL, self.ret.unary_op(UnaryOps.SIN)).binary_op(BinaryOps.MUL, grad_output.const_like(-1))
+
 
 # ************* reduce ops *************
 
