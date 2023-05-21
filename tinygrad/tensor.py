@@ -385,7 +385,7 @@ class Tensor:
     ret = (x * weight.reshape(1, groups, rcout, *[1 for _ in range(len(oyx))], cin, *HW)).sum([-1-i for i in range(1+len(oyx))], keepdim=True).reshape(bs, cout, *oyx)
     return ret if bias is None else ret.add(bias.reshape(1, -1, *[1 for _ in range(len(HW))]))
 
-  def convT(self, weight: Tensor, bias: Optional[Tensor] = None, groups=1, stride=1, dilation=1, padding=0, output_padding=0) -> Tensor:
+  def conv2dT(self, weight: Tensor, bias: Optional[Tensor] = None, groups=1, stride=1, dilation=1, padding=0, output_padding=0) -> Tensor:
     (bs, cin_), (cout, cin), HW = self.shape[:2], weight.shape[:2], weight.shape[2:]
     assert groups * cin == cin_ and len(self.shape) == len(weight.shape), f"Input Tensor shape {self.shape} does not match the shape of the weights {weight.shape}. ({groups * cin} vs. {cin_})"
     padding_ = [padding] * 4 if isinstance(padding, int) else (padding if len(padding) >= 4 else [padding[1], padding[1], padding[0], padding[0]])
