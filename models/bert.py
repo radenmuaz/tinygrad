@@ -1,5 +1,5 @@
 # conf
-{
+config_json = {
   "attention_probs_dropout_prob": 0.1,
   "hidden_act": "gelu",
   "hidden_dropout_prob": 0.1,
@@ -13,6 +13,32 @@
   "vocab_size": 30522
 }
 
+print("Loading BERT configs...")
+
+# config = BertConfig(
+#     attention_probs_dropout_prob=config_json["attention_probs_dropout_prob"],
+#     hidden_act=config_json["hidden_act"],
+#     hidden_dropout_prob=config_json["hidden_dropout_prob"],
+#     hidden_size=config_json["hidden_size"],
+#     initializer_range=config_json["initializer_range"],
+#     intermediate_size=config_json["intermediate_size"],
+#     max_position_embeddings=config_json["max_position_embeddings"],
+#     num_attention_heads=config_json["num_attention_heads"],
+#     num_hidden_layers=config_json["num_hidden_layers"],
+#     type_vocab_size=config_json["type_vocab_size"],
+#     vocab_size=config_json["vocab_size"])
+
+# model = BertForQuestionAnswering(config)
+# model.to(dev)
+# model.eval()
+# model_file = os.environ.get("ML_MODEL_FILE_WITH_PATH", "build/data/bert_tf_v1_1_large_fp32_384_v2/model.pytorch")
+# model.load_state_dict(torch.load(model_file), strict=False)
+
+# print("Constructing SUT...")
+# self.sut = lg.ConstructSUT(self.issue_queries, self.flush_queries)
+# print("Finished constructing SUT.")
+
+# self.qsl = get_squad_QSL(args.max_examples)
 
 # pytorch utils
 # Copyright 2022 The HuggingFace Team. All rights reserved.
