@@ -385,41 +385,7 @@ class Tensor:
     ret = (x * weight.reshape(1, groups, rcout, *[1 for _ in range(len(oyx))], cin, *HW)).sum([-1-i for i in range(1+len(oyx))], keepdim=True).reshape(bs, cout, *oyx)
     return ret if bias is None else ret.add(bias.reshape(1, -1, *[1 for _ in range(len(HW))]))
 
-  def conv2dT(self, weight: Tensor, bias: Optional[Tensor] = None, groups=1, stride=1, dilation=1, padding=0, output_padding=0) -> Tensor:
-    (bs, cin_), (cout, cin), HW = self.shape[:2], weight.shape[:2], weight.shape[2:]
-    assert groups * cin == cin_ and len(self.shape) == len(weight.shape), f"Input Tensor shape {self.shape} does not match the shape of the weights {weight.shape}. ({groups * cin} vs. {cin_})"
-    padding_ = [padding] * 4 if isinstance(padding, int) else (padding if len(padding) >= 4 else [padding[1], padding[1], padding[0], padding[0]])
 
-    # Calculate the output shape
-    H_in, W_in = self.shape[-2:]
-    stride_ = make_pair(stride, len(HW))
-    dilation_ = make_pair(dilation, len(HW))
-    padding_ = make_pair(padding_, len(HW))
-    output_padding_ = make_pair(output_padding, len(HW))
-    H_out = (H_in - 1) * stride_[0] - 2 * padding_[0] + dilation_[0] * (HW[0] - 1) + output_padding_[0] + 1
-    W_out = (W_in - 1) * stride_[1] - 2 * padding_[1] + dilation_[1] * (HW[1] - 1) + output_padding_[1] + 1
-
-    # Expand input tensor
-    x = self.unsqueeze(-2).unsqueeze(-2)  # (bs, cin, 1, 1, H_in, W_in)
-
-    # Expand weights
-    rcout = cout // groups
-    weight_exp = weight.reshape(1, groups, rcout, cin, *HW)  # (1, groups, rcout, cin, H, W)
-
-    # Calculate padding for input tensor
-    padding_exp = [(padding_[0], padding_[0]), (padding_[1], padding_[1])]  # (padding_H, padding_W)
-
-    # Perform transposed convolution
-    ret = x.conv2d(weight_exp.transpose(2, 3), None, groups=groups, stride=stride, dilation=dilation, padding=padding_exp)  # (bs, cout, H_out, W_out)
-
-    # Crop output tensor to desired shape
-    ret = ret[..., :H_out, :W_out]
-
-    # Add bias if provided
-    if bias is not None:
-        ret = ret.add(bias.reshape(1, -1, 1, 1))
-
-    return ret
 
   def dot(self, w:Tensor) -> Tensor:
     x = self.reshape(*self.shape[0:-1], 1, self.shape[-1])
