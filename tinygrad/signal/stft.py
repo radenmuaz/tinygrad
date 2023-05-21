@@ -1,62 +1,51 @@
-from tinygrad.tensor import Tensor
+from tinygrad.tensor import Tensor, dtypes
 from scipy.signal import check_COLA, get_window
 import numpy as np
-class STFT(th.nn.Module):
-    def __init__(self, win_len=1024, win_hop=512, fft_len=1024,
-                 win_type='hann',
-                 win_sqrt=False, pad_center=False):
+class STFT:
+    def __init__(self, win_len=256, win_hop=100, fft_len=256,
+                 win_type='hann', pad_center=False, dtype=dtypes.float32):
         super(STFT, self).__init__()
         assert fft_len >= win_len
         self.win_len = win_len
         self.win_hop = win_hop
         self.fft_len = fft_len
         self.win_type = win_type
-        self.win_sqrt = win_sqrt
         self.pad_center = pad_center
         self.pad_amount = self.fft_len // 2
-        self.strider = Tensor.eye(self.win_len)[:, None, :]
-
-        self.fft_k, self.ifft_k = self.init_kernel()
+        self.dtype = dtype
+        self.fft_kernel, self.ifft_kernel = self.init_kernel()
     
     def init_kernel(self):
-        fft_kernel = np.fft.fft(np.eye(self.fft_len), 1)
+        fft_kernel = np.fft.fft(np.eye(self.fft_len))
         fft_kernel = fft_kernel[:self.win_len]
-        fft_kernel = np.concatenate(
-            (fft_kernel[:, :, 0], fft_kernel[:, :, 1]), dim=1)
-        ifft_kernel = np.linalg.pinverse(fft_kernel)[:, None, :]
+        fft_kernel = np.concatenate([fft_kernel.real, fft_kernel.imag], axis=1).T[:, None, :]
+        ifft_kernel = np.linalg.pinv(fft_kernel)[:, None, :]
 
         window = get_window(self.win_type, self.win_len)
-        window = Tensor(window)
         left_pad = (self.fft_len - self.win_len)//2
         right_pad = left_pad + (self.fft_len - self.win_len) % 2
-        window = window.pad(left_pad, right_pad)
-        if self.win_sqrt:
-            self.padded_window = window
-            window = window.sqrt()
-        else:
-            self.padded_window = window**2
+        window = np.pad(window,(left_pad, right_pad))
+        self.ifft_window = window**2
 
-        fft_kernel = fft_kernel.T * window
-        ifft_kernel = ifft_kernel * window
-        
+        fft_kernel = (fft_kernel * window).astype(self.dtype.np)
+        ifft_kernel = (ifft_kernel * window).astype(self.dtype.np)
+
+        fft_kernel = Tensor(fft_kernel)
+        ifft_kernel =  Tensor(ifft_kernel)
         return fft_kernel, ifft_kernel
 
     def transform(self, x):
-        self.num_samples = x.size(-1) # (B,1,T)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(1)
+        self.num_samples = x.shape[-1]
         if self.pad_center:
             x = x.pad(self.pad_amount, self.pad_amount)
-        x = x.conv(self.en_k, stride=self.win_hop)
-        outputs = x.transpose(1, 2)
-        outputs = x.linear(self.fft_k)
-        outputs = outputs.transpose(1, 2)
-        dim = self.fft_len//2+1
-        real = outputs[:, :dim, :]
-        imag = outputs[:, dim:, :]
-        return real.stack([imag])
+        y = x.conv2d(self.fft_kernel, stride=self.win_hop)
+        y = Tensor.stack([y[:,:self.fft_len,:], y[:,self.fft_len:,:]], dim=-1)
+        return y
 
-    def inverse(self, z):
-
-        inputs = z[:0,:].stack([z[:,1,:]], dim=1)
+    def inverse(self, y):
+        y = z[:0,:].stack([y[:,1,:]], dim=1)
         outputs = F.conv_transpose1d(inputs, self.ifft_k, stride=self.win_hop)
         t = (self.padded_window[None, :, None]).repeat(1, 1, inputs.size(-1))
         t = t.to(inputs.device)
